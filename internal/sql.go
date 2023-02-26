@@ -71,6 +71,27 @@ func (db *database) LoadPost(id int) (*core.Post, error) {
 	return nil, fmt.Errorf("Not yet implemented")
 }
 
+func (db *database) GetPostsByUser(u *core.User) ([]core.Post, error) {
+    rows, err := db.impl.Query(
+        "SELECT id, content FROM posts WHERE author = ?",
+        u.Id)
+
+    if err != nil || rows == nil {
+        return nil, fmt.Errorf("Failed to list posts of user %v:%v due to %v\n", u.Id, u.Login, err)
+    }
+    defer rows.Close()
+
+    ps := []core.Post{}
+    for rows.Next() {
+        p := core.Post{Author: u}
+        rows.Scan(&p.Id, &p.Content)
+
+        ps = append(ps, p)
+    }
+
+    return ps, nil
+}
+
 func (db *database) LoadComment(id int) (*core.Comment, error) {
 	return nil, fmt.Errorf("Not yet implemented")
 }
@@ -93,6 +114,26 @@ func (db *database) VerifyUser(login string, passwordHash uint64) (*core.User, e
 	u := &core.User{Login: login, PasswordHash: passwordHash}
 	if rows.Next() {
 		rows.Scan(&u.Id, &u.Bio)
+	} else {
+		return nil, fmt.Errorf("Failed to scan rows\n")
+	}
+
+	return u, nil
+}
+
+func (db *database) FindUser(login string) (*core.User, error) {
+	rows, err := db.impl.Query(
+		"SELECT id, bio, password_hash FROM users WHERE login = ?;",
+		login)
+
+	if err != nil || rows == nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	u := &core.User{Login: login}
+	if rows.Next() {
+		rows.Scan(&u.Id, &u.Bio, &u.PasswordHash)
 	} else {
 		return nil, fmt.Errorf("Failed to scan rows\n")
 	}

@@ -44,6 +44,9 @@ type Database interface {
 	LoadLike(id int) (*Like, error)
 
 	VerifyUser(login string, passwordHash uint64) (*User, error)
+    FindUser(login string) (*User, error)
+
+    GetPostsByUser(*User) ([]Post, error)
 
 	Close()
 }

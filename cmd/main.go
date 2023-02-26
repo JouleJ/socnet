@@ -25,6 +25,11 @@ func main() {
 		log.Fatalf("Failed to find login.html resource due to %v\n", err)
 	}
 
+    styleCss, err := core.GetFirstResourceByRegexp(rm, `.*style\.css$`)
+    if err != nil {
+        log.Fatalf("Failed to find style.css resource due to %v\n", err)
+    }
+
 	r := chi.NewRouter()
 
 	r.Get("/signup", func(w http.ResponseWriter, r *http.Request) {
@@ -53,7 +58,13 @@ func main() {
 			return
 		}
 
-		fmt.Fprintf(w, "You are logged in as %v\n", login)
+        html, err := internal.RenderUserByLogin(login, db)
+        w.Write(styleCss.Content())
+		fmt.Fprintf(w, html)
+        if err != nil {
+            log.Printf("Failed to render user %v: %v\n", login, err)
+            io.WriteString(w, "<h1>Cannot render user</h1>")
+        }
 	})
 
 	r.Post("/do_signup", func(w http.ResponseWriter, r *http.Request) {
@@ -65,7 +76,7 @@ func main() {
 
 		log.Printf("/do_signup: %v %v %v\n", login, password, bio)
 
-		u, err := db.VerifyUser(login, h)
+		u, err := db.FindUser(login)
 		if u != nil && err == nil {
 			log.Printf("Failed to create user: user already exists\n")
 			io.WriteString(w, "<h1>User already exists</h1>")

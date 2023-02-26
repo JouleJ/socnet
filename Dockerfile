@@ -10,6 +10,7 @@ WORKDIR /app
 
 RUN ["go", "get", "github.com/mattn/go-sqlite3"]
 RUN ["go", "get", "github.com/go-chi/chi/v5"]
+RUN ["go", "get", "golang.org/x/net/html"]
 
 RUN ["go", "build", "-o", "executable", "cmd/main.go"]
 
