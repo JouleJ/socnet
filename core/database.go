@@ -1,49 +1,49 @@
 package core
 
 type User struct {
-    Id int
+	Id int
 
-    Login string
-    PasswordHash uint64
+	Login        string
+	PasswordHash uint64
 
-    Bio []byte
+	Bio []byte
 }
 
 type Post struct {
-    Id int
+	Id int
 
-    Author *User 
-    Content []byte
+	Author  *User
+	Content []byte
 }
 
 type Comment struct {
-    Id int
+	Id int
 
-    Author *User
-    CommentedPost *Post
-    Content []byte
+	Author        *User
+	CommentedPost *Post
+	Content       []byte
 }
 
 type Like struct {
-    Id int
+	Id int
 
-    Author *User
-    LikedPost *Post
-    LikedComment *Comment
+	Author       *User
+	LikedPost    *Post
+	LikedComment *Comment
 }
 
 type Database interface {
-    CreateUser(u *User) error
-    CreatePost(p *Post) error
-    CreateComment(c *Comment) error
-    CreateLike (l *Like) error
+	CreateUser(u *User) error
+	CreatePost(p *Post) error
+	CreateComment(c *Comment) error
+	CreateLike(l *Like) error
 
-    LoadUser(id int) (*User, error)
-    LoadPost(id int) (*Post, error)
-    LoadComment(id int) (*Comment, error)
-    LoadLike(id int) (*Like, error)
+	LoadUser(id int) (*User, error)
+	LoadPost(id int) (*Post, error)
+	LoadComment(id int) (*Comment, error)
+	LoadLike(id int) (*Like, error)
 
-    VerifyUser(login string, passwordHash uint64) (*User, error)
+	VerifyUser(login string, passwordHash uint64) (*User, error)
 
-    Close()
+	Close()
 }

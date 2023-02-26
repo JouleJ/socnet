@@ -26,11 +26,11 @@ SELECT COUNT(*) + 1, ?, ?, ? FROM users;
 		u.PasswordHash,
 		u.Bio)
 
-    if err != nil {
-        return err
-    }
-    lastInsertId, err := result.LastInsertId()
-    u.Id = int(lastInsertId)
+	if err != nil {
+		return err
+	}
+	lastInsertId, err := result.LastInsertId()
+	u.Id = int(lastInsertId)
 
 	return err
 }
@@ -48,23 +48,23 @@ func (db *database) CreateLike(l *core.Like) error {
 }
 
 func (db *database) LoadUser(id int) (*core.User, error) {
-    rows, err := db.impl.Query(
-        "SELECT login, password_hash, bio FROM users WHERE id = ?;",
-        id)
+	rows, err := db.impl.Query(
+		"SELECT login, password_hash, bio FROM users WHERE id = ?;",
+		id)
 
-    if err != nil || rows == nil {
-        return nil, err
-    }
-    defer rows.Close()
+	if err != nil || rows == nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    u := &core.User{Id: id}
-    if rows.Next() {
-        rows.Scan(&u.Login, &u.PasswordHash, &u.Bio)
-    } else {
-        return nil, fmt.Errorf("Failed to scan rows\n")
-    }
+	u := &core.User{Id: id}
+	if rows.Next() {
+		rows.Scan(&u.Login, &u.PasswordHash, &u.Bio)
+	} else {
+		return nil, fmt.Errorf("Failed to scan rows\n")
+	}
 
-    return u, nil
+	return u, nil
 }
 
 func (db *database) LoadPost(id int) (*core.Post, error) {
@@ -80,24 +80,24 @@ func (db *database) LoadLike(id int) (*core.Like, error) {
 }
 
 func (db *database) VerifyUser(login string, passwordHash uint64) (*core.User, error) {
-    rows, err := db.impl.Query(
-        "SELECT id, bio FROM users WHERE login = ? AND password_hash = ?;",
-        login,
-        passwordHash)
+	rows, err := db.impl.Query(
+		"SELECT id, bio FROM users WHERE login = ? AND password_hash = ?;",
+		login,
+		passwordHash)
 
-    if err != nil || rows == nil {
-        return nil, err
-    }
-    defer rows.Close()
+	if err != nil || rows == nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-    u := &core.User{Login: login, PasswordHash: passwordHash}
-    if rows.Next() {
-        rows.Scan(&u.Id, &u.Bio)
-    } else {
-        return nil, fmt.Errorf("Failed to scan rows\n")
-    }
+	u := &core.User{Login: login, PasswordHash: passwordHash}
+	if rows.Next() {
+		rows.Scan(&u.Id, &u.Bio)
+	} else {
+		return nil, fmt.Errorf("Failed to scan rows\n")
+	}
 
-    return u, nil
+	return u, nil
 }
 
 func (db *database) Close() {
