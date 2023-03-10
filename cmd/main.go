@@ -10,6 +10,26 @@ import (
 	"net/http"
 )
 
+func writeErrorString(w io.Writer, s string) {
+    io.WriteString(w, `<h1 class="error">`)
+    io.WriteString(w, s)
+    io.WriteString(w, `</h1>`)
+}
+
+func beginHtml(w io.Writer) {
+    io.WriteString(w, `<!DOCTYPE HTML>`)
+    io.WriteString(w, `<html>`)
+    io.WriteString(w, `    <head>`)
+    io.WriteString(w, `        <link rel="stylesheet" type="text/css" href="style.css">`)
+    io.WriteString(w, `    </head>`)
+    io.WriteString(w, `    <body>`)
+}
+
+func endHtml(w io.Writer) {
+    io.WriteString(w, `    </body>`)
+    io.WriteString(w, `</html>`)
+}
+
 func main() {
 	db := internal.NewDatabase()
 	defer db.Close()
@@ -32,6 +52,12 @@ func main() {
 
 	r := chi.NewRouter()
 
+    r.Get("/style.css", func(w http.ResponseWriter, r *http.Request) {
+        log.Printf("/style.css")
+        w.Header().Set("Content-Type", "text/css")
+        w.Write(styleCss.Content())
+    }) 
+
 	r.Get("/signup", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("/signup\n")
 		w.Write(signupHtml.Content())
@@ -43,6 +69,9 @@ func main() {
 	})
 
 	r.Get("/homepage", func(w http.ResponseWriter, r *http.Request) {
+        beginHtml(w)
+        defer endHtml(w)
+
 		var login string
 		tokenCookie, err := r.Cookie("socnet_token")
 		if err == nil && tokenCookie != nil {
@@ -53,17 +82,16 @@ func main() {
 
 		if len(login) == 0 || err != nil {
 			log.Printf("Failed to verify token due to %v", err)
-			io.WriteString(w, "<h1>You are not logged in</h1>")
-			io.WriteString(w, `</p>Please visit <a href="/signup">sign up</a> or <a href="/login">log in</a> page</p>`)
+			writeErrorString(w, "You are not logged in")
+			io.WriteString(w, `<p class="error">Please visit <a href="/signup">sign up</a> or <a href="/login">log in</a> page</p>`)
 			return
 		}
 
         html, err := internal.RenderUserByLogin(login, db)
-        w.Write(styleCss.Content())
 		fmt.Fprintf(w, html)
         if err != nil {
             log.Printf("Failed to render user %v: %v\n", login, err)
-            io.WriteString(w, "<h1>Cannot render user</h1>")
+            writeErrorString(w, "Cannot render user")
         }
 	})
 
@@ -79,7 +107,10 @@ func main() {
 		u, err := db.FindUser(login)
 		if u != nil && err == nil {
 			log.Printf("Failed to create user: user already exists\n")
-			io.WriteString(w, "<h1>User already exists</h1>")
+
+            beginHtml(w)
+            defer endHtml(w)
+            writeErrorString(w, "User already exists")
 			return
 		}
 
@@ -87,7 +118,10 @@ func main() {
 		err = db.CreateUser(u)
 		if err != nil {
 			log.Printf("Failed to create user: %v\n", err)
-			io.WriteString(w, "<h1>User cannot be created</h1>")
+
+            beginHtml(w)
+            defer endHtml(w)
+            writeErrorString(w, "User cannot be created")
 			return
 		}
 
@@ -107,7 +141,10 @@ func main() {
 			log.Printf("Login and password match, user=%v\n", *u)
 		} else {
 			log.Printf("Login and password do not match, err=%v\n", err)
-			io.WriteString(w, "<h1>Cannot log in</h1>")
+
+            beginHtml(w)
+            defer endHtml(w)
+            writeErrorString(w, "Cannot log in")
 			return
 		}
 
