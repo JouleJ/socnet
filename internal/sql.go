@@ -56,7 +56,24 @@ SELECT COUNT(*) + 1, ?, ? FROM posts;
 }
 
 func (db *database) CreateComment(c *core.Comment) error {
-	return fmt.Errorf("Not yet implemented")
+    query := `
+INSERT INTO comments (id, author, commented_post, content)
+SELECT COUNT(*) + 1, ?, ?, ? FROM comments;
+`
+
+    result, err := db.impl.Exec(
+        query,
+        c.Author.Id,
+        c.CommentedPost.Id,
+        c.Content)
+
+    if err != nil {
+        return err
+    }
+
+    lastInsertId, err := result.LastInsertId()
+    c.Id = int(lastInsertId)
+    return err
 }
 
 func (db *database) CreateLike(l *core.Like) error {
@@ -114,7 +131,7 @@ func (db *database) LoadPost(id int) (*core.Post, error) {
 
 func (db *database) GetPostsByUser(u *core.User) ([]core.Post, error) {
     rows, err := db.impl.Query(
-        `SELECT id, content FROM posts WHERE author = ?`,
+        `SELECT id, content FROM posts WHERE author = ?;`,
         u.Id)
 
     if err != nil || rows == nil {
@@ -131,6 +148,38 @@ func (db *database) GetPostsByUser(u *core.User) ([]core.Post, error) {
     }
 
     return ps, nil
+}
+
+func (db *database) GetCommentsByPost(p *core.Post) ([]core.Comment, error) {
+    rows, err := db.impl.Query(
+        `SELECT c.id, c.content, u.id, u.login, u.password_hash, u.bio
+         FROM comments as c
+         INNER JOIN users as u
+         ON u.id == c.author
+         WHERE c.commented_post = ?;`,
+        p.Id)
+
+    if err != nil || rows == nil {
+        return nil, fmt.Errorf("Failed to get comments to post %v due to %v\n", p.Id, err)
+    }
+    defer rows.Close()
+
+    cs := []core.Comment{}
+    for rows.Next() {
+        u := &core.User{}
+        c := core.Comment{CommentedPost: p, Author: u}
+        rows.Scan(
+            &c.Id,
+            &c.Content,
+            &c.Author.Id,
+            &c.Author.Login,
+            &c.Author.PasswordHash,
+            &c.Author.Bio)
+
+        cs = append(cs, c)
+    }
+
+    return cs, nil
 }
 
 func (db *database) GetNewestPosts(count int) ([]core.Post, error) {

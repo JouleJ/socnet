@@ -5,6 +5,7 @@ import (
     "github.com/JouleJ/socnet/core"
     "golang.org/x/net/html"
     "io"
+    "log"
     "strings"
 )
 
@@ -79,7 +80,7 @@ func RenderUser(u *core.User, db core.Database) (string, error) {
 
     for _, p := range ps {
         builder.WriteString(`<tr>`)
-        fmt.Fprintf(builder, `<td class="rowname">Post <a href="/post?id=%v">%v</a></td>`, p.Id, p.Id)
+        fmt.Fprintf(builder, `<td class="rowname"><a href="/post?id=%v">Post link</a></td>`, p.Id)
         fmt.Fprintf(builder, `<td class="post"><code><pre>%v</pre></code></td>`, html.EscapeString(string(p.Content)))
         builder.WriteString(`</tr>`)
     }
@@ -109,7 +110,7 @@ func RenderUserById(id int, db core.Database) (string, error) {
     return html, err
 }
 
-func RenderPost(p *core.Post) (string, error) {
+func RenderPost(p *core.Post, db core.Database) (string, error) {
     builder := &strings.Builder{}
 
     builder.WriteString(`<table>`)
@@ -120,14 +121,26 @@ func RenderPost(p *core.Post) (string, error) {
     builder.WriteString(`</tr>`)
 
     builder.WriteString(`<tr>`)
-    builder.WriteString(`<td class="rowname">Post Id</td>`)
-    fmt.Fprintf(builder, `<td><a href="/post?id=%v">%v</a></td>`, p.Id, p.Id)
+    builder.WriteString(`<td class="rowname">Post link</td>`)
+    fmt.Fprintf(builder, `<td><a href="/post?id=%v">Post %v</a></td>`, p.Id, p.Id)
     builder.WriteString(`</tr>`)
 
     builder.WriteString(`<tr>`)
     builder.WriteString(`<td class="rowname">Content</td>`)
     fmt.Fprintf(builder, `<td class="post"><code><pre>%v</pre></code></td>`, html.EscapeString(string(p.Content)))
     builder.WriteString(`</tr>`)
+
+    cs, err := db.GetCommentsByPost(p)
+    if err != nil {
+        log.Printf("Failed to get comments in RenderPost: %v\n", err)
+    }
+
+    for _, c := range cs {
+        builder.WriteString(`<tr>`)
+        fmt.Fprintf(builder, `<td class="rowname">Comment by <a href="/user?id=%v">%v</a></td>`, c.Author.Id, html.EscapeString(c.Author.Login))
+        fmt.Fprintf(builder, `<td class="post"><code><pre>%v</pre></code></td`, html.EscapeString(string(c.Content)))
+        builder.WriteString(`</tr>`)
+    }
 
     builder.WriteString(`</table>`)
 
@@ -140,6 +153,6 @@ func RenderPostById(id int, db core.Database) (string, error) {
         return "", fmt.Errorf("Failed to load post: id=%v, err=%v\n", id, err)
     }
 
-    html, err := RenderPost(p)
+    html, err := RenderPost(p, db)
     return html, err
 }

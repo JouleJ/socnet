@@ -37,6 +37,11 @@ func main() {
         log.Fatalf("Failed to find style.css resource due to %v\n", err)
     }
 
+    mkCommentHtml, err := core.GetFirstResourceByRegexp(rm, `.*mkcomment\.html$`)
+    if err != nil {
+        log.Fatalf("Failed to find mkcomment.html resource due to %v\n", err)
+    }
+
 	r := chi.NewRouter()
 
     r.Get("/style.css", func(w http.ResponseWriter, r *http.Request) {
@@ -84,7 +89,7 @@ func main() {
             return
         }
 
-		fmt.Fprintf(w, html)
+		io.WriteString(w, html)
         w.Write(mkPostHtml.Content())
 	})
 
@@ -106,12 +111,12 @@ func main() {
         }
 
         for _, p := range ps {
-            html, err := internal.RenderPost(&p)
+            html, err := internal.RenderPost(&p, db)
             if err != nil {
                 log.Printf("Failed to render post: id=%v, err=%v\n", p.Id, err)
             }
 
-            fmt.Fprintf(w, html)
+            io.WriteString(w, html)
         }
     })
 
@@ -137,7 +142,9 @@ func main() {
             return
         }
 
-		fmt.Fprintf(w, html)
+	    io.WriteString(w, html)
+        html = string(mkCommentHtml.Content())
+        fmt.Fprintf(w, html, id)
     })
 
     r.Get("/user", func(w http.ResponseWriter, r *http.Request) {
@@ -162,7 +169,7 @@ func main() {
             return
         }
 
-        fmt.Fprintf(w, html)
+        io.WriteString(w, html)
     }) 
 
 	r.Post("/do_signup", func(w http.ResponseWriter, r *http.Request) {
@@ -284,6 +291,72 @@ func main() {
         }
 
 		http.Redirect(w, r, "/homepage", http.StatusSeeOther)
+    })
+
+    r.Post("/do_comment", func(w http.ResponseWriter, r *http.Request) {
+        db := internal.NewDatabase()
+        defer db.Close()
+
+        r.ParseForm()
+        commentContent := []byte(r.Form.Get("commentContent"))
+
+        if len(commentContent) == 0 {
+            internal.BeginHtml(w)
+            defer internal.EndHtml(w)
+
+			internal.WriteErrorString(w, "Empty comments are not allowed")
+            return
+        }
+
+		var login string
+		tokenCookie, err := r.Cookie("socnet_token")
+		if err == nil && tokenCookie != nil {
+			login, err = internal.VerifyToken(tokenCookie.Value)
+		}
+
+        if len(login) == 0 {
+            internal.BeginHtml(w)
+            defer internal.EndHtml(w)
+
+			internal.WriteErrorString(w, "You are not logged in")
+			io.WriteString(w, `<p class="error">Please visit <a href="/signup">sign up</a> or <a href="/login">log in</a> page</p>`)
+			return
+        }
+
+        id, err := strconv.Atoi(r.URL.Query().Get("id"))
+        if err != nil {
+            log.Printf("Invalid post id: %v\n", err)
+            internal.WriteErrorString(w, "Cannot show post with such id")
+            return
+        }
+
+        log.Printf("/do_comment user.login=%v post.id=%v comment.content=%v\n", login, id, commentContent)
+
+        u, err := db.FindUser(login)
+        if err != nil {
+            log.Printf("Failed to find user %v: %v\n", login, err)
+            internal.WriteErrorString(w, "You are logged in as non-existant user\n")
+            return
+        }
+
+        p, err := db.LoadPost(id)
+        if err != nil {
+            log.Printf("Failed to find post %v: %v\n", id, err)
+            internal.WriteErrorString(w, "You are trying to comment non-existant post\n")
+            return
+        }
+
+        c := &core.Comment{Author: u, CommentedPost: p, Content: commentContent}
+        err = db.CreateComment(c)
+
+        if err != nil {
+            log.Printf("Failed to create comment: %v\n", err)
+            internal.WriteErrorString(w, "Failed to create comment\n")
+            return
+        }
+
+        redirectUrl := fmt.Sprintf("/post?id=%v", id)
+		http.Redirect(w, r, redirectUrl, http.StatusSeeOther)
     })
 
 	http.ListenAndServe(":80", r)

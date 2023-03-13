@@ -48,6 +48,7 @@ type Database interface {
 
     GetPostsByUser(*User) ([]Post, error)
     GetNewestPosts(count int) ([]Post, error)
+    GetCommentsByPost(*Post) ([]Comment, error)
 
 	Close()
 }
