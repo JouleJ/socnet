@@ -140,6 +140,31 @@ func main() {
 		fmt.Fprintf(w, html)
     })
 
+    r.Get("/user", func(w http.ResponseWriter, r *http.Request) {
+        db := internal.NewDatabase()
+        defer db.Close()
+
+        internal.BeginHtml(w)
+        defer internal.EndHtml(w)
+
+        id, err := strconv.Atoi(r.URL.Query().Get("id"))
+        if err != nil {
+            log.Printf("Invalid user id: %v\n", err)
+            internal.WriteErrorString(w, "Cannot show user with such id")
+            return
+        }
+
+        log.Printf("/user id=%v\n", id)
+        html, err := internal.RenderUserById(id, db)
+        if err != nil {
+            log.Printf("Failed to render user %v: %v\n", id, err)
+            internal.WriteErrorString(w, "Cannot render user")
+            return
+        }
+
+        fmt.Fprintf(w, html)
+    }) 
+
 	r.Post("/do_signup", func(w http.ResponseWriter, r *http.Request) {
         db := internal.NewDatabase()
         defer db.Close()

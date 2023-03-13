@@ -99,6 +99,16 @@ func RenderUserByLogin(login string, db core.Database) (string, error) {
     return html, err
 }
 
+func RenderUserById(id int, db core.Database) (string, error) {
+    u, err := db.LoadUser(id)
+    if err != nil {
+        return "", fmt.Errorf("Failed to find user: id=%v, err=%v\n", id, err)
+    }
+
+    html, err := RenderUser(u, db)
+    return html, err
+}
+
 func RenderPost(p *core.Post) (string, error) {
     builder := &strings.Builder{}
 
