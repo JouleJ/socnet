@@ -47,6 +47,7 @@ type Database interface {
     FindUser(login string) (*User, error)
 
     GetPostsByUser(*User) ([]Post, error)
+    GetNewestPosts(count int) ([]Post, error)
 
 	Close()
 }

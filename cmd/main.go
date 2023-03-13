@@ -5,35 +5,17 @@ import (
 	"github.com/JouleJ/socnet/core"
 	"github.com/JouleJ/socnet/internal"
 	"github.com/go-chi/chi/v5"
-	"io"
 	"log"
 	"net/http"
+    "io"
+    "strconv"
 )
 
-func writeErrorString(w io.Writer, s string) {
-    io.WriteString(w, `<h1 class="error">`)
-    io.WriteString(w, s)
-    io.WriteString(w, `</h1>`)
-}
-
-func beginHtml(w io.Writer) {
-    io.WriteString(w, `<!DOCTYPE HTML>`)
-    io.WriteString(w, `<html>`)
-    io.WriteString(w, `    <head>`)
-    io.WriteString(w, `        <link rel="stylesheet" type="text/css" href="style.css">`)
-    io.WriteString(w, `    </head>`)
-    io.WriteString(w, `    <body>`)
-}
-
-func endHtml(w io.Writer) {
-    io.WriteString(w, `    </body>`)
-    io.WriteString(w, `</html>`)
-}
+const (
+    newsFeedPostCount = 1000
+)
 
 func main() {
-	db := internal.NewDatabase()
-	defer db.Close()
-
 	rm := internal.NewResourceManager()
 	signupHtml, err := core.GetFirstResourceByRegexp(rm, `.*signup\.html$`)
 	if err != nil {
@@ -44,6 +26,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to find login.html resource due to %v\n", err)
 	}
+    
+    mkPostHtml, err := core.GetFirstResourceByRegexp(rm, `.*mkpost\.html$`)
+    if err != nil {
+        log.Fatalf("Failed to find mkpost.html resource due to %v\n", err)
+    }
 
     styleCss, err := core.GetFirstResourceByRegexp(rm, `.*style\.css$`)
     if err != nil {
@@ -69,8 +56,11 @@ func main() {
 	})
 
 	r.Get("/homepage", func(w http.ResponseWriter, r *http.Request) {
-        beginHtml(w)
-        defer endHtml(w)
+        db := internal.NewDatabase()
+        defer db.Close()
+
+        internal.BeginHtml(w)
+        defer internal.EndHtml(w)
 
 		var login string
 		tokenCookie, err := r.Cookie("socnet_token")
@@ -82,20 +72,78 @@ func main() {
 
 		if len(login) == 0 || err != nil {
 			log.Printf("Failed to verify token due to %v", err)
-			writeErrorString(w, "You are not logged in")
+			internal.WriteErrorString(w, "You are not logged in")
 			io.WriteString(w, `<p class="error">Please visit <a href="/signup">sign up</a> or <a href="/login">log in</a> page</p>`)
 			return
 		}
 
         html, err := internal.RenderUserByLogin(login, db)
-		fmt.Fprintf(w, html)
         if err != nil {
             log.Printf("Failed to render user %v: %v\n", login, err)
-            writeErrorString(w, "Cannot render user")
+            internal.WriteErrorString(w, "Cannot render user")
+            return
         }
+
+		fmt.Fprintf(w, html)
+        w.Write(mkPostHtml.Content())
 	})
 
+    r.Get("/newsfeed", func(w http.ResponseWriter, r *http.Request) {
+        db := internal.NewDatabase()
+        defer db.Close()
+
+        internal.BeginHtml(w)
+        defer internal.EndHtml(w)
+
+        log.Printf("/newsfeed postCount=%v", newsFeedPostCount)
+
+        ps, err := db.GetNewestPosts(newsFeedPostCount)
+        if err != nil {
+            log.Printf("Failed to load news feed: %v\n", err)
+
+            internal.WriteErrorString(w, "Cannot load newsfeed")
+            return
+        }
+
+        for _, p := range ps {
+            html, err := internal.RenderPost(&p)
+            if err != nil {
+                log.Printf("Failed to render post: id=%v, err=%v\n", p.Id, err)
+            }
+
+            fmt.Fprintf(w, html)
+        }
+    })
+
+    r.Get("/post", func(w http.ResponseWriter, r *http.Request) {
+        db := internal.NewDatabase()
+        defer db.Close()
+
+        internal.BeginHtml(w)
+        defer internal.EndHtml(w)
+
+        id, err := strconv.Atoi(r.URL.Query().Get("id"))
+        if err != nil {
+            log.Printf("Invalid post id: %v\n", err)
+            internal.WriteErrorString(w, "Cannot show post with such id")
+            return
+        }
+
+        log.Printf("/post id=%v\n", id)
+        html, err := internal.RenderPostById(id, db)
+        if err != nil {
+            log.Printf("Failed to render post %v: %v\n", id, err)
+            internal.WriteErrorString(w, "Cannot render post")
+            return
+        }
+
+		fmt.Fprintf(w, html)
+    })
+
 	r.Post("/do_signup", func(w http.ResponseWriter, r *http.Request) {
+        db := internal.NewDatabase()
+        defer db.Close()
+
 		r.ParseForm()
 		login := r.Form.Get("login")
 		password := []byte(r.Form.Get("password"))
@@ -108,9 +156,9 @@ func main() {
 		if u != nil && err == nil {
 			log.Printf("Failed to create user: user already exists\n")
 
-            beginHtml(w)
-            defer endHtml(w)
-            writeErrorString(w, "User already exists")
+            internal.BeginHtml(w)
+            defer internal.EndHtml(w)
+            internal.WriteErrorString(w, "User already exists")
 			return
 		}
 
@@ -119,9 +167,9 @@ func main() {
 		if err != nil {
 			log.Printf("Failed to create user: %v\n", err)
 
-            beginHtml(w)
-            defer endHtml(w)
-            writeErrorString(w, "User cannot be created")
+            internal.BeginHtml(w)
+            defer internal.EndHtml(w)
+            internal.WriteErrorString(w, "User cannot be created")
 			return
 		}
 
@@ -129,6 +177,9 @@ func main() {
 	})
 
 	r.Post("/do_login", func(w http.ResponseWriter, r *http.Request) {
+        db := internal.NewDatabase()
+        defer db.Close()
+
 		r.ParseForm()
 		login := r.Form.Get("login")
 		password := []byte(r.Form.Get("password"))
@@ -142,15 +193,73 @@ func main() {
 		} else {
 			log.Printf("Login and password do not match, err=%v\n", err)
 
-            beginHtml(w)
-            defer endHtml(w)
-            writeErrorString(w, "Cannot log in")
+            internal.BeginHtml(w)
+            defer internal.EndHtml(w)
+            internal.WriteErrorString(w, "Cannot log in")
 			return
 		}
 
 		http.SetCookie(w, &http.Cookie{Name: "socnet_token", Value: internal.MakeToken(u.Login)})
 		http.Redirect(w, r, "/homepage", http.StatusSeeOther)
 	})
+
+    r.Post("/do_post", func(w http.ResponseWriter, r *http.Request) {
+        db := internal.NewDatabase()
+        defer db.Close()
+
+        r.ParseForm()
+        postContent := []byte(r.Form.Get("postContent"))
+
+        if len(postContent) == 0 {
+            internal.BeginHtml(w)
+            defer internal.EndHtml(w)
+
+			internal.WriteErrorString(w, "Empty posts are not allowed")
+            return
+        }
+
+		var login string
+		tokenCookie, err := r.Cookie("socnet_token")
+		if err == nil && tokenCookie != nil {
+			login, err = internal.VerifyToken(tokenCookie.Value)
+		}
+
+        if len(login) == 0 {
+            internal.BeginHtml(w)
+            defer internal.EndHtml(w)
+
+			internal.WriteErrorString(w, "You are not logged in")
+			io.WriteString(w, `<p class="error">Please visit <a href="/signup">sign up</a> or <a href="/login">log in</a> page</p>`)
+			return
+        }
+
+        log.Printf("/do_post login=%v postContent=%v", login, postContent)
+
+        u, err := db.FindUser(login)
+        if err != nil {
+            log.Printf("Failed to find user: %v\n", err)
+
+            internal.BeginHtml(w)
+            defer internal.EndHtml(w)
+
+            internal.WriteErrorString(w, "You are logged in as non-existant user")
+            return
+        }
+
+        p := &core.Post{Author: u, Content: postContent}
+        err = db.CreatePost(p)
+        if err != nil {
+            log.Printf("Failed to create post: %v\n", err)
+
+            internal.BeginHtml(w)
+            defer internal.EndHtml(w)
+
+            internal.WriteErrorString(w, "Failed to create post")
+            return
+        }
+
+		http.Redirect(w, r, "/homepage", http.StatusSeeOther)
+    })
 
 	http.ListenAndServe(":80", r)
 }

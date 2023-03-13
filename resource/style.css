@@ -41,14 +41,18 @@ a:hover {
 /* Tables */
 table {
   width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
+  max-width: 700px;
+  margin: 0 auto;
+  margin-top: 50px;
+  background-color: white;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+  padding: 20px;
 }
 
 th, td {
   text-align: left;
   padding: 8px;
-  border-bottom: 1px solid #ddd;
 }
 
 th {
@@ -63,7 +67,7 @@ tr:nth-child(even) {
 /* Forms */
 form {
   width: 100%;
-  max-width: 500px;
+  max-width: 700px;
   margin: 0 auto;
   margin-top: 50px;
   background-color: white;
@@ -103,15 +107,79 @@ input[type="checkbox"] {
   margin-right: 10px;
 }
 
+textarea {
+  display: block;
+  width: 95%;
+  height: 150px;
+  padding: 10px;
+  font-size: 16px;
+  line-height: 1.5;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  margin-bottom: 20px;
+}
+
+.rowname {
+    text-align: right;
+}
+
 /* Messages */
 .success {
   color: green;
-  font-weight: bold;
+  font-weight: normal;
   margin-top: 20px;
+  text-align: center;
 }
 
 .error {
   color: red;
-  font-weight: bold;
+  font-weight: normal;
   margin-top: 20px;
+  text-align: center;
 }
+
+/* Blog posts */
+.post {
+  text-align: left;
+  border: 1px solid black;
+}
+
+/* Header CSS */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  background-color: #333;
+  color: #fff;
+}
+
+header a {
+  color: #fff;
+  text-decoration: none;
+  margin-right: 1rem;
+}
+
+header a:hover {
+  text-decoration: underline;
+}
+
+/* Footer CSS */
+footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background-color: #333;
+  color: #fff;
+}
+
+footer a {
+  color: #fff;
+  text-decoration: none;
+  margin: 0 1rem;
+}
+
+footer a:hover {
+  text-decoration: underline;
+} 

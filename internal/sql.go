@@ -29,14 +29,30 @@ SELECT COUNT(*) + 1, ?, ?, ? FROM users;
 	if err != nil {
 		return err
 	}
+
 	lastInsertId, err := result.LastInsertId()
 	u.Id = int(lastInsertId)
-
 	return err
 }
 
 func (db *database) CreatePost(p *core.Post) error {
-	return fmt.Errorf("Not yet implemented")
+    query := `
+INSERT INTO posts (id, author, content) 
+SELECT COUNT(*) + 1, ?, ? FROM posts;
+`
+
+    result, err := db.impl.Exec(
+        query,
+        p.Author.Id,
+        p.Content)
+
+    if err != nil {
+        return err
+    }
+
+	lastInsertId, err := result.LastInsertId()
+	p.Id = int(lastInsertId)
+	return err
 }
 
 func (db *database) CreateComment(c *core.Comment) error {
@@ -55,6 +71,7 @@ func (db *database) LoadUser(id int) (*core.User, error) {
 	if err != nil || rows == nil {
 		return nil, err
 	}
+
 	defer rows.Close()
 
 	u := &core.User{Id: id}
@@ -68,12 +85,36 @@ func (db *database) LoadUser(id int) (*core.User, error) {
 }
 
 func (db *database) LoadPost(id int) (*core.Post, error) {
-	return nil, fmt.Errorf("Not yet implemented")
+    rows, err := db.impl.Query(
+        "SELECT author, content FROM posts WHERE id = ?;",
+        id)
+
+    if err != nil || rows == nil {
+        return nil, err
+    }
+
+    defer rows.Close()
+
+    p := &core.Post{Id: id}
+    if rows.Next() {
+        var authorId int
+
+        rows.Scan(&authorId, &p.Content)
+
+        p.Author, err = db.LoadUser(authorId)
+        if err != nil {
+            return nil, err
+        }
+    } else {
+        return nil, fmt.Errorf("Failed to scan rows\n")
+    }
+
+    return p, nil
 }
 
 func (db *database) GetPostsByUser(u *core.User) ([]core.Post, error) {
     rows, err := db.impl.Query(
-        "SELECT id, content FROM posts WHERE author = ?",
+        `SELECT id, content FROM posts WHERE author = ?`,
         u.Id)
 
     if err != nil || rows == nil {
@@ -85,6 +126,41 @@ func (db *database) GetPostsByUser(u *core.User) ([]core.Post, error) {
     for rows.Next() {
         p := core.Post{Author: u}
         rows.Scan(&p.Id, &p.Content)
+
+        ps = append(ps, p)
+    }
+
+    return ps, nil
+}
+
+func (db *database) GetNewestPosts(count int) ([]core.Post, error) {
+    rows, err := db.impl.Query(
+        `SELECT p.id, p.content, u.id, u.login, u.password_hash, u.bio
+         FROM posts as p
+         INNER JOIN users as u
+         ON u.id = p.author
+         ORDER BY p.id DESC;`)
+
+    if err != nil || rows == nil {
+        return nil, fmt.Errorf("Failed to list %v newst posts due to %v\n", count, err)
+    }
+    defer rows.Close()
+
+    ps := make([]core.Post, 0, count)
+    for i := 0; i < count; i++ {
+        if !rows.Next() {
+            break
+        }
+
+        u := &core.User{}
+        p := core.Post{Author: u}
+        rows.Scan(
+            &p.Id,
+            &p.Content,
+            &p.Author.Id,
+            &p.Author.Login,
+            &p.Author.PasswordHash,
+            &p.Author.Bio)
 
         ps = append(ps, p)
     }
