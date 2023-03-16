@@ -5,14 +5,14 @@ import (
 	"github.com/JouleJ/socnet/core"
 	"github.com/JouleJ/socnet/internal"
 	"github.com/go-chi/chi/v5"
+	"io"
 	"log"
 	"net/http"
-    "io"
-    "strconv"
+	"strconv"
 )
 
 const (
-    newsFeedPostCount = 1000
+	newsFeedPostCount = 1000
 )
 
 func main() {
@@ -26,29 +26,29 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to find login.html resource due to %v\n", err)
 	}
-    
-    mkPostHtml, err := core.GetFirstResourceByRegexp(rm, `.*mkpost\.html$`)
-    if err != nil {
-        log.Fatalf("Failed to find mkpost.html resource due to %v\n", err)
-    }
 
-    styleCss, err := core.GetFirstResourceByRegexp(rm, `.*style\.css$`)
-    if err != nil {
-        log.Fatalf("Failed to find style.css resource due to %v\n", err)
-    }
+	mkPostHtml, err := core.GetFirstResourceByRegexp(rm, `.*mkpost\.html$`)
+	if err != nil {
+		log.Fatalf("Failed to find mkpost.html resource due to %v\n", err)
+	}
 
-    mkCommentHtml, err := core.GetFirstResourceByRegexp(rm, `.*mkcomment\.html$`)
-    if err != nil {
-        log.Fatalf("Failed to find mkcomment.html resource due to %v\n", err)
-    }
+	styleCss, err := core.GetFirstResourceByRegexp(rm, `.*style\.css$`)
+	if err != nil {
+		log.Fatalf("Failed to find style.css resource due to %v\n", err)
+	}
+
+	mkCommentHtml, err := core.GetFirstResourceByRegexp(rm, `.*mkcomment\.html$`)
+	if err != nil {
+		log.Fatalf("Failed to find mkcomment.html resource due to %v\n", err)
+	}
 
 	r := chi.NewRouter()
 
-    r.Get("/style.css", func(w http.ResponseWriter, r *http.Request) {
-        log.Printf("/style.css")
-        w.Header().Set("Content-Type", "text/css")
-        w.Write(styleCss.Content())
-    }) 
+	r.Get("/style.css", func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("/style.css")
+		w.Header().Set("Content-Type", "text/css")
+		w.Write(styleCss.Content())
+	})
 
 	r.Get("/signup", func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("/signup\n")
@@ -61,11 +61,11 @@ func main() {
 	})
 
 	r.Get("/homepage", func(w http.ResponseWriter, r *http.Request) {
-        db := internal.NewDatabase()
-        defer db.Close()
+		db := internal.NewDatabase()
+		defer db.Close()
 
-        internal.BeginHtml(w)
-        defer internal.EndHtml(w)
+		internal.BeginHtml(w)
+		defer internal.EndHtml(w)
 
 		var login string
 		tokenCookie, err := r.Cookie("socnet_token")
@@ -82,99 +82,99 @@ func main() {
 			return
 		}
 
-        html, err := internal.RenderUserByLogin(login, db)
-        if err != nil {
-            log.Printf("Failed to render user %v: %v\n", login, err)
-            internal.WriteErrorString(w, "Cannot render user")
-            return
-        }
+		html, err := internal.RenderUserByLogin(login, db)
+		if err != nil {
+			log.Printf("Failed to render user %v: %v\n", login, err)
+			internal.WriteErrorString(w, "Cannot render user")
+			return
+		}
 
 		io.WriteString(w, html)
-        w.Write(mkPostHtml.Content())
+		w.Write(mkPostHtml.Content())
 	})
 
-    r.Get("/newsfeed", func(w http.ResponseWriter, r *http.Request) {
-        db := internal.NewDatabase()
-        defer db.Close()
+	r.Get("/newsfeed", func(w http.ResponseWriter, r *http.Request) {
+		db := internal.NewDatabase()
+		defer db.Close()
 
-        internal.BeginHtml(w)
-        defer internal.EndHtml(w)
+		internal.BeginHtml(w)
+		defer internal.EndHtml(w)
 
-        log.Printf("/newsfeed postCount=%v", newsFeedPostCount)
+		log.Printf("/newsfeed postCount=%v", newsFeedPostCount)
 
-        ps, err := db.GetNewestPosts(newsFeedPostCount)
-        if err != nil {
-            log.Printf("Failed to load news feed: %v\n", err)
+		ps, err := db.GetNewestPosts(newsFeedPostCount)
+		if err != nil {
+			log.Printf("Failed to load news feed: %v\n", err)
 
-            internal.WriteErrorString(w, "Cannot load newsfeed")
-            return
-        }
+			internal.WriteErrorString(w, "Cannot load newsfeed")
+			return
+		}
 
-        for _, p := range ps {
-            html, err := internal.RenderPost(&p, db)
-            if err != nil {
-                log.Printf("Failed to render post: id=%v, err=%v\n", p.Id, err)
-            }
+		for _, p := range ps {
+			html, err := internal.RenderPost(&p, db)
+			if err != nil {
+				log.Printf("Failed to render post: id=%v, err=%v\n", p.Id, err)
+			}
 
-            io.WriteString(w, html)
-        }
-    })
+			io.WriteString(w, html)
+		}
+	})
 
-    r.Get("/post", func(w http.ResponseWriter, r *http.Request) {
-        db := internal.NewDatabase()
-        defer db.Close()
+	r.Get("/post", func(w http.ResponseWriter, r *http.Request) {
+		db := internal.NewDatabase()
+		defer db.Close()
 
-        internal.BeginHtml(w)
-        defer internal.EndHtml(w)
+		internal.BeginHtml(w)
+		defer internal.EndHtml(w)
 
-        id, err := strconv.Atoi(r.URL.Query().Get("id"))
-        if err != nil {
-            log.Printf("Invalid post id: %v\n", err)
-            internal.WriteErrorString(w, "Cannot show post with such id")
-            return
-        }
+		id, err := strconv.Atoi(r.URL.Query().Get("id"))
+		if err != nil {
+			log.Printf("Invalid post id: %v\n", err)
+			internal.WriteErrorString(w, "Cannot show post with such id")
+			return
+		}
 
-        log.Printf("/post id=%v\n", id)
-        html, err := internal.RenderPostById(id, db)
-        if err != nil {
-            log.Printf("Failed to render post %v: %v\n", id, err)
-            internal.WriteErrorString(w, "Cannot render post")
-            return
-        }
+		log.Printf("/post id=%v\n", id)
+		html, err := internal.RenderPostById(id, db)
+		if err != nil {
+			log.Printf("Failed to render post %v: %v\n", id, err)
+			internal.WriteErrorString(w, "Cannot render post")
+			return
+		}
 
-	    io.WriteString(w, html)
-        html = string(mkCommentHtml.Content())
-        fmt.Fprintf(w, html, id)
-    })
+		io.WriteString(w, html)
+		html = string(mkCommentHtml.Content())
+		fmt.Fprintf(w, html, id)
+	})
 
-    r.Get("/user", func(w http.ResponseWriter, r *http.Request) {
-        db := internal.NewDatabase()
-        defer db.Close()
+	r.Get("/user", func(w http.ResponseWriter, r *http.Request) {
+		db := internal.NewDatabase()
+		defer db.Close()
 
-        internal.BeginHtml(w)
-        defer internal.EndHtml(w)
+		internal.BeginHtml(w)
+		defer internal.EndHtml(w)
 
-        id, err := strconv.Atoi(r.URL.Query().Get("id"))
-        if err != nil {
-            log.Printf("Invalid user id: %v\n", err)
-            internal.WriteErrorString(w, "Cannot show user with such id")
-            return
-        }
+		id, err := strconv.Atoi(r.URL.Query().Get("id"))
+		if err != nil {
+			log.Printf("Invalid user id: %v\n", err)
+			internal.WriteErrorString(w, "Cannot show user with such id")
+			return
+		}
 
-        log.Printf("/user id=%v\n", id)
-        html, err := internal.RenderUserById(id, db)
-        if err != nil {
-            log.Printf("Failed to render user %v: %v\n", id, err)
-            internal.WriteErrorString(w, "Cannot render user")
-            return
-        }
+		log.Printf("/user id=%v\n", id)
+		html, err := internal.RenderUserById(id, db)
+		if err != nil {
+			log.Printf("Failed to render user %v: %v\n", id, err)
+			internal.WriteErrorString(w, "Cannot render user")
+			return
+		}
 
-        io.WriteString(w, html)
-    }) 
+		io.WriteString(w, html)
+	})
 
 	r.Post("/do_signup", func(w http.ResponseWriter, r *http.Request) {
-        db := internal.NewDatabase()
-        defer db.Close()
+		db := internal.NewDatabase()
+		defer db.Close()
 
 		r.ParseForm()
 		login := r.Form.Get("login")
@@ -188,9 +188,9 @@ func main() {
 		if u != nil && err == nil {
 			log.Printf("Failed to create user: user already exists\n")
 
-            internal.BeginHtml(w)
-            defer internal.EndHtml(w)
-            internal.WriteErrorString(w, "User already exists")
+			internal.BeginHtml(w)
+			defer internal.EndHtml(w)
+			internal.WriteErrorString(w, "User already exists")
 			return
 		}
 
@@ -199,9 +199,9 @@ func main() {
 		if err != nil {
 			log.Printf("Failed to create user: %v\n", err)
 
-            internal.BeginHtml(w)
-            defer internal.EndHtml(w)
-            internal.WriteErrorString(w, "User cannot be created")
+			internal.BeginHtml(w)
+			defer internal.EndHtml(w)
+			internal.WriteErrorString(w, "User cannot be created")
 			return
 		}
 
@@ -209,8 +209,8 @@ func main() {
 	})
 
 	r.Post("/do_login", func(w http.ResponseWriter, r *http.Request) {
-        db := internal.NewDatabase()
-        defer db.Close()
+		db := internal.NewDatabase()
+		defer db.Close()
 
 		r.ParseForm()
 		login := r.Form.Get("login")
@@ -225,9 +225,9 @@ func main() {
 		} else {
 			log.Printf("Login and password do not match, err=%v\n", err)
 
-            internal.BeginHtml(w)
-            defer internal.EndHtml(w)
-            internal.WriteErrorString(w, "Cannot log in")
+			internal.BeginHtml(w)
+			defer internal.EndHtml(w)
+			internal.WriteErrorString(w, "Cannot log in")
 			return
 		}
 
@@ -235,20 +235,20 @@ func main() {
 		http.Redirect(w, r, "/homepage", http.StatusSeeOther)
 	})
 
-    r.Post("/do_post", func(w http.ResponseWriter, r *http.Request) {
-        db := internal.NewDatabase()
-        defer db.Close()
+	r.Post("/do_post", func(w http.ResponseWriter, r *http.Request) {
+		db := internal.NewDatabase()
+		defer db.Close()
 
-        r.ParseForm()
-        postContent := []byte(r.Form.Get("postContent"))
+		r.ParseForm()
+		postContent := []byte(r.Form.Get("postContent"))
 
-        if len(postContent) == 0 {
-            internal.BeginHtml(w)
-            defer internal.EndHtml(w)
+		if len(postContent) == 0 {
+			internal.BeginHtml(w)
+			defer internal.EndHtml(w)
 
 			internal.WriteErrorString(w, "Empty posts are not allowed")
-            return
-        }
+			return
+		}
 
 		var login string
 		tokenCookie, err := r.Cookie("socnet_token")
@@ -256,57 +256,57 @@ func main() {
 			login, err = internal.VerifyToken(tokenCookie.Value)
 		}
 
-        if len(login) == 0 {
-            internal.BeginHtml(w)
-            defer internal.EndHtml(w)
+		if len(login) == 0 {
+			internal.BeginHtml(w)
+			defer internal.EndHtml(w)
 
 			internal.WriteErrorString(w, "You are not logged in")
 			io.WriteString(w, `<p class="error">Please visit <a href="/signup">sign up</a> or <a href="/login">log in</a> page</p>`)
 			return
-        }
+		}
 
-        log.Printf("/do_post login=%v postContent=%v", login, postContent)
+		log.Printf("/do_post login=%v postContent=%v", login, postContent)
 
-        u, err := db.FindUser(login)
-        if err != nil {
-            log.Printf("Failed to find user: %v\n", err)
+		u, err := db.FindUser(login)
+		if err != nil {
+			log.Printf("Failed to find user: %v\n", err)
 
-            internal.BeginHtml(w)
-            defer internal.EndHtml(w)
+			internal.BeginHtml(w)
+			defer internal.EndHtml(w)
 
-            internal.WriteErrorString(w, "You are logged in as non-existant user")
-            return
-        }
+			internal.WriteErrorString(w, "You are logged in as non-existant user")
+			return
+		}
 
-        p := &core.Post{Author: u, Content: postContent}
-        err = db.CreatePost(p)
-        if err != nil {
-            log.Printf("Failed to create post: %v\n", err)
+		p := &core.Post{Author: u, Content: postContent}
+		err = db.CreatePost(p)
+		if err != nil {
+			log.Printf("Failed to create post: %v\n", err)
 
-            internal.BeginHtml(w)
-            defer internal.EndHtml(w)
+			internal.BeginHtml(w)
+			defer internal.EndHtml(w)
 
-            internal.WriteErrorString(w, "Failed to create post")
-            return
-        }
+			internal.WriteErrorString(w, "Failed to create post")
+			return
+		}
 
 		http.Redirect(w, r, "/homepage", http.StatusSeeOther)
-    })
+	})
 
-    r.Post("/do_comment", func(w http.ResponseWriter, r *http.Request) {
-        db := internal.NewDatabase()
-        defer db.Close()
+	r.Post("/do_comment", func(w http.ResponseWriter, r *http.Request) {
+		db := internal.NewDatabase()
+		defer db.Close()
 
-        r.ParseForm()
-        commentContent := []byte(r.Form.Get("commentContent"))
+		r.ParseForm()
+		commentContent := []byte(r.Form.Get("commentContent"))
 
-        if len(commentContent) == 0 {
-            internal.BeginHtml(w)
-            defer internal.EndHtml(w)
+		if len(commentContent) == 0 {
+			internal.BeginHtml(w)
+			defer internal.EndHtml(w)
 
 			internal.WriteErrorString(w, "Empty comments are not allowed")
-            return
-        }
+			return
+		}
 
 		var login string
 		tokenCookie, err := r.Cookie("socnet_token")
@@ -314,50 +314,50 @@ func main() {
 			login, err = internal.VerifyToken(tokenCookie.Value)
 		}
 
-        if len(login) == 0 {
-            internal.BeginHtml(w)
-            defer internal.EndHtml(w)
+		if len(login) == 0 {
+			internal.BeginHtml(w)
+			defer internal.EndHtml(w)
 
 			internal.WriteErrorString(w, "You are not logged in")
 			io.WriteString(w, `<p class="error">Please visit <a href="/signup">sign up</a> or <a href="/login">log in</a> page</p>`)
 			return
-        }
+		}
 
-        id, err := strconv.Atoi(r.URL.Query().Get("id"))
-        if err != nil {
-            log.Printf("Invalid post id: %v\n", err)
-            internal.WriteErrorString(w, "Cannot show post with such id")
-            return
-        }
+		id, err := strconv.Atoi(r.URL.Query().Get("id"))
+		if err != nil {
+			log.Printf("Invalid post id: %v\n", err)
+			internal.WriteErrorString(w, "Cannot show post with such id")
+			return
+		}
 
-        log.Printf("/do_comment user.login=%v post.id=%v comment.content=%v\n", login, id, commentContent)
+		log.Printf("/do_comment user.login=%v post.id=%v comment.content=%v\n", login, id, commentContent)
 
-        u, err := db.FindUser(login)
-        if err != nil {
-            log.Printf("Failed to find user %v: %v\n", login, err)
-            internal.WriteErrorString(w, "You are logged in as non-existant user\n")
-            return
-        }
+		u, err := db.FindUser(login)
+		if err != nil {
+			log.Printf("Failed to find user %v: %v\n", login, err)
+			internal.WriteErrorString(w, "You are logged in as non-existant user\n")
+			return
+		}
 
-        p, err := db.LoadPost(id)
-        if err != nil {
-            log.Printf("Failed to find post %v: %v\n", id, err)
-            internal.WriteErrorString(w, "You are trying to comment non-existant post\n")
-            return
-        }
+		p, err := db.LoadPost(id)
+		if err != nil {
+			log.Printf("Failed to find post %v: %v\n", id, err)
+			internal.WriteErrorString(w, "You are trying to comment non-existant post\n")
+			return
+		}
 
-        c := &core.Comment{Author: u, CommentedPost: p, Content: commentContent}
-        err = db.CreateComment(c)
+		c := &core.Comment{Author: u, CommentedPost: p, Content: commentContent}
+		err = db.CreateComment(c)
 
-        if err != nil {
-            log.Printf("Failed to create comment: %v\n", err)
-            internal.WriteErrorString(w, "Failed to create comment\n")
-            return
-        }
+		if err != nil {
+			log.Printf("Failed to create comment: %v\n", err)
+			internal.WriteErrorString(w, "Failed to create comment\n")
+			return
+		}
 
-        redirectUrl := fmt.Sprintf("/post?id=%v", id)
+		redirectUrl := fmt.Sprintf("/post?id=%v", id)
 		http.Redirect(w, r, redirectUrl, http.StatusSeeOther)
-    })
+	})
 
 	http.ListenAndServe(":80", r)
 }

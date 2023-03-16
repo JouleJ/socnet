@@ -44,11 +44,11 @@ type Database interface {
 	LoadLike(id int) (*Like, error)
 
 	VerifyUser(login string, passwordHash uint64) (*User, error)
-    FindUser(login string) (*User, error)
+	FindUser(login string) (*User, error)
 
-    GetPostsByUser(*User) ([]Post, error)
-    GetNewestPosts(count int) ([]Post, error)
-    GetCommentsByPost(*Post) ([]Comment, error)
+	GetPostsByUser(*User) ([]Post, error)
+	GetNewestPosts(count int) ([]Post, error)
+	GetCommentsByPost(*Post) ([]Comment, error)
 
 	Close()
 }

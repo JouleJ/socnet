@@ -36,19 +36,19 @@ SELECT COUNT(*) + 1, ?, ?, ? FROM users;
 }
 
 func (db *database) CreatePost(p *core.Post) error {
-    query := `
+	query := `
 INSERT INTO posts (id, author, content) 
 SELECT COUNT(*) + 1, ?, ? FROM posts;
 `
 
-    result, err := db.impl.Exec(
-        query,
-        p.Author.Id,
-        p.Content)
+	result, err := db.impl.Exec(
+		query,
+		p.Author.Id,
+		p.Content)
 
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
 	lastInsertId, err := result.LastInsertId()
 	p.Id = int(lastInsertId)
@@ -56,24 +56,24 @@ SELECT COUNT(*) + 1, ?, ? FROM posts;
 }
 
 func (db *database) CreateComment(c *core.Comment) error {
-    query := `
+	query := `
 INSERT INTO comments (id, author, commented_post, content)
 SELECT COUNT(*) + 1, ?, ?, ? FROM comments;
 `
 
-    result, err := db.impl.Exec(
-        query,
-        c.Author.Id,
-        c.CommentedPost.Id,
-        c.Content)
+	result, err := db.impl.Exec(
+		query,
+		c.Author.Id,
+		c.CommentedPost.Id,
+		c.Content)
 
-    if err != nil {
-        return err
-    }
+	if err != nil {
+		return err
+	}
 
-    lastInsertId, err := result.LastInsertId()
-    c.Id = int(lastInsertId)
-    return err
+	lastInsertId, err := result.LastInsertId()
+	c.Id = int(lastInsertId)
+	return err
 }
 
 func (db *database) CreateLike(l *core.Like) error {
@@ -102,119 +102,119 @@ func (db *database) LoadUser(id int) (*core.User, error) {
 }
 
 func (db *database) LoadPost(id int) (*core.Post, error) {
-    rows, err := db.impl.Query(
-        "SELECT author, content FROM posts WHERE id = ?;",
-        id)
+	rows, err := db.impl.Query(
+		"SELECT author, content FROM posts WHERE id = ?;",
+		id)
 
-    if err != nil || rows == nil {
-        return nil, err
-    }
+	if err != nil || rows == nil {
+		return nil, err
+	}
 
-    defer rows.Close()
+	defer rows.Close()
 
-    p := &core.Post{Id: id}
-    if rows.Next() {
-        var authorId int
+	p := &core.Post{Id: id}
+	if rows.Next() {
+		var authorId int
 
-        rows.Scan(&authorId, &p.Content)
+		rows.Scan(&authorId, &p.Content)
 
-        p.Author, err = db.LoadUser(authorId)
-        if err != nil {
-            return nil, err
-        }
-    } else {
-        return nil, fmt.Errorf("Failed to scan rows\n")
-    }
+		p.Author, err = db.LoadUser(authorId)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		return nil, fmt.Errorf("Failed to scan rows\n")
+	}
 
-    return p, nil
+	return p, nil
 }
 
 func (db *database) GetPostsByUser(u *core.User) ([]core.Post, error) {
-    rows, err := db.impl.Query(
-        `SELECT id, content FROM posts WHERE author = ?;`,
-        u.Id)
+	rows, err := db.impl.Query(
+		`SELECT id, content FROM posts WHERE author = ?;`,
+		u.Id)
 
-    if err != nil || rows == nil {
-        return nil, fmt.Errorf("Failed to list posts of user %v:%v due to %v\n", u.Id, u.Login, err)
-    }
-    defer rows.Close()
+	if err != nil || rows == nil {
+		return nil, fmt.Errorf("Failed to list posts of user %v:%v due to %v\n", u.Id, u.Login, err)
+	}
+	defer rows.Close()
 
-    ps := []core.Post{}
-    for rows.Next() {
-        p := core.Post{Author: u}
-        rows.Scan(&p.Id, &p.Content)
+	ps := []core.Post{}
+	for rows.Next() {
+		p := core.Post{Author: u}
+		rows.Scan(&p.Id, &p.Content)
 
-        ps = append(ps, p)
-    }
+		ps = append(ps, p)
+	}
 
-    return ps, nil
+	return ps, nil
 }
 
 func (db *database) GetCommentsByPost(p *core.Post) ([]core.Comment, error) {
-    rows, err := db.impl.Query(
-        `SELECT c.id, c.content, u.id, u.login, u.password_hash, u.bio
+	rows, err := db.impl.Query(
+		`SELECT c.id, c.content, u.id, u.login, u.password_hash, u.bio
          FROM comments as c
          INNER JOIN users as u
          ON u.id == c.author
          WHERE c.commented_post = ?;`,
-        p.Id)
+		p.Id)
 
-    if err != nil || rows == nil {
-        return nil, fmt.Errorf("Failed to get comments to post %v due to %v\n", p.Id, err)
-    }
-    defer rows.Close()
+	if err != nil || rows == nil {
+		return nil, fmt.Errorf("Failed to get comments to post %v due to %v\n", p.Id, err)
+	}
+	defer rows.Close()
 
-    cs := []core.Comment{}
-    for rows.Next() {
-        u := &core.User{}
-        c := core.Comment{CommentedPost: p, Author: u}
-        rows.Scan(
-            &c.Id,
-            &c.Content,
-            &c.Author.Id,
-            &c.Author.Login,
-            &c.Author.PasswordHash,
-            &c.Author.Bio)
+	cs := []core.Comment{}
+	for rows.Next() {
+		u := &core.User{}
+		c := core.Comment{CommentedPost: p, Author: u}
+		rows.Scan(
+			&c.Id,
+			&c.Content,
+			&c.Author.Id,
+			&c.Author.Login,
+			&c.Author.PasswordHash,
+			&c.Author.Bio)
 
-        cs = append(cs, c)
-    }
+		cs = append(cs, c)
+	}
 
-    return cs, nil
+	return cs, nil
 }
 
 func (db *database) GetNewestPosts(count int) ([]core.Post, error) {
-    rows, err := db.impl.Query(
-        `SELECT p.id, p.content, u.id, u.login, u.password_hash, u.bio
+	rows, err := db.impl.Query(
+		`SELECT p.id, p.content, u.id, u.login, u.password_hash, u.bio
          FROM posts as p
          INNER JOIN users as u
          ON u.id = p.author
          ORDER BY p.id DESC;`)
 
-    if err != nil || rows == nil {
-        return nil, fmt.Errorf("Failed to list %v newst posts due to %v\n", count, err)
-    }
-    defer rows.Close()
+	if err != nil || rows == nil {
+		return nil, fmt.Errorf("Failed to list %v newst posts due to %v\n", count, err)
+	}
+	defer rows.Close()
 
-    ps := make([]core.Post, 0, count)
-    for i := 0; i < count; i++ {
-        if !rows.Next() {
-            break
-        }
+	ps := make([]core.Post, 0, count)
+	for i := 0; i < count; i++ {
+		if !rows.Next() {
+			break
+		}
 
-        u := &core.User{}
-        p := core.Post{Author: u}
-        rows.Scan(
-            &p.Id,
-            &p.Content,
-            &p.Author.Id,
-            &p.Author.Login,
-            &p.Author.PasswordHash,
-            &p.Author.Bio)
+		u := &core.User{}
+		p := core.Post{Author: u}
+		rows.Scan(
+			&p.Id,
+			&p.Content,
+			&p.Author.Id,
+			&p.Author.Login,
+			&p.Author.PasswordHash,
+			&p.Author.Bio)
 
-        ps = append(ps, p)
-    }
+		ps = append(ps, p)
+	}
 
-    return ps, nil
+	return ps, nil
 }
 
 func (db *database) LoadComment(id int) (*core.Comment, error) {
